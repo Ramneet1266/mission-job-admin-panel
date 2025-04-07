@@ -1,5 +1,6 @@
 // pages/signup.js
 "use client"
+import Link from "next/link"
 import { useState } from "react"
 
 export default function page() {
@@ -27,12 +28,13 @@ export default function page() {
 						placeholder="Password"
 						className="w-full border px-4 py-2 rounded-md placeholder-gray-400"
 					/>
-
-					<div className="flex space-x-4">
-						<button className="bg-black text-white px-6 py-2 rounded-md">
-							Log in
-						</button>
-					</div>
+					<Link href={"/dashboard"}>
+						<div className="flex space-x-4">
+							<button className="bg-black text-white cursor-pointer px-6 py-2 rounded-md">
+								Log in
+							</button>
+						</div>
+					</Link>
 				</div>
 
 				{/* Right: Illustration */}
