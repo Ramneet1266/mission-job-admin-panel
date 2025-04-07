@@ -10,6 +10,7 @@ import {
 	FaSignOutAlt,
 	FaChevronLeft,
 	FaChevronRight,
+	FaBriefcase,
 } from "react-icons/fa"
 
 export default function Sidebar() {
@@ -25,6 +26,11 @@ export default function Sidebar() {
 			href: "/dashboard/Information",
 		},
 		{ icon: <FaNewspaper />, label: "News", href: "/dashboard/News" },
+		{
+			icon: <FaBriefcase />,
+			label: "Job Posting",
+			href: "/dashboard/Jobposting",
+		},
 	]
 
 	return (
