@@ -12,6 +12,9 @@ import {
 	FaChevronRight,
 	FaBriefcase,
 } from "react-icons/fa"
+import { BiCategoryAlt } from "react-icons/bi"
+import { signOut } from "firebase/auth"
+import { auth } from "../lib/firebase"
 
 export default function Sidebar() {
 	const [isCollapsed, setIsCollapsed] = useState(false)
@@ -31,8 +34,22 @@ export default function Sidebar() {
 			label: "Job Posting",
 			href: "/dashboard/Jobposting",
 		},
+		{
+			icon: <BiCategoryAlt />,
+			label: "Category",
+			href: "/dashboard/Category",
+		},
 	]
-
+	const handleLogout = async () => {
+		try {
+			await signOut(auth)
+			document.cookie =
+				"user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+			window.location.href = "/"
+		} catch (error) {
+			console.error("Logout failed:", error)
+		}
+	}
 	return (
 		<div
 			className={`h-screen ${
@@ -106,7 +123,8 @@ export default function Sidebar() {
 					<span className="text-lg min-w-[20px] text-gray-700 group-hover:text-red-500 transition-colors duration-300">
 						<FaSignOutAlt />
 					</span>
-					<span
+					<button
+						onClick={handleLogout}
 						className={`ml-3 whitespace-nowrap transition-all duration-300 origin-left ${
 							isCollapsed
 								? "opacity-0 w-0 overflow-hidden"
@@ -114,7 +132,7 @@ export default function Sidebar() {
 						}`}
 					>
 						Logout
-					</span>
+					</button>
 				</Link>
 			</div>
 		</div>
