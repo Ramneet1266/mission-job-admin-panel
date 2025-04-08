@@ -65,7 +65,7 @@ export default function Sidebar() {
 			</button>
 
 			{/* Header */}
-			<Link href={"/"}>
+			<Link href={"/dashboard"}>
 				<div className="p-6 border-b border-gray-200">
 					<span
 						className={`text-2xl font-bold transition-opacity duration-300 ${

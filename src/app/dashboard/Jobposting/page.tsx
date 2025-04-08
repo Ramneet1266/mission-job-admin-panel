@@ -41,10 +41,10 @@ interface Tag {
 	createdAt: string
 }
 
-export default function postingPage() {
+export default function PostingPage() {
 	const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
 	const [isClosing, setIsClosing] = useState<boolean>(false)
-	const [posting, setposting] = useState<JobPosting[]>([])
+	const [posting, setPosting] = useState<JobPosting[]>([])
 	const [searchTerm, setSearchTerm] = useState<string>("")
 	const [editJob, setEditJob] = useState<JobPosting | null>(null)
 	const [jobTitle, setJobTitle] = useState<string>("")
@@ -64,6 +64,26 @@ export default function postingPage() {
 	const [selectedCategory, setSelectedCategory] =
 		useState<Category | null>(null)
 	const [categoryTags, setCategoryTags] = useState<Tag[]>([])
+	const [selectedTags, setSelectedTags] = useState<string[]>([])
+
+	// Function to fetch tags for a given category ID
+	const fetchTagsForCategory = (categoryId: string) => {
+		const tagsUnsubscribe = onSnapshot(
+			collection(db, "categories", categoryId, "tags"),
+			(snapshot) => {
+				const tagsData: Tag[] = snapshot.docs.map((doc) => ({
+					id: doc.id,
+					...doc.data(),
+				})) as Tag[]
+				setCategoryTags(tagsData)
+			},
+			(error) => {
+				console.error("Error fetching tags:", error.message)
+				setCategoryTags([]) // Clear tags on error
+			}
+		)
+		return tagsUnsubscribe
+	}
 
 	const openModal = () => {
 		setEditJob(null)
@@ -106,22 +126,11 @@ export default function postingPage() {
 		)
 		setSelectedCategory(jobCategory || null)
 
-		// Fetch tags from the subcollection like in the reference code
-		const tagsUnsubscribe = onSnapshot(
-			collection(db, "categories", job.categoryId, "tags"),
-			(snapshot) => {
-				const tagsData: Tag[] = snapshot.docs.map((doc) => ({
-					id: doc.id,
-					...doc.data(),
-				})) as Tag[]
-				setCategoryTags(tagsData)
-			},
-			(error) => {
-				console.error("Error fetching tags:", error.message)
-			}
-		)
+		if (job.categoryId) {
+			fetchTagsForCategory(job.categoryId)
+		}
+
 		setIsModalOpen(true)
-		return () => tagsUnsubscribe() // Cleanup subscription
 	}
 
 	const closeModal = () => {
@@ -145,7 +154,7 @@ export default function postingPage() {
 				})) as Category[]
 				setCategories(categoryData)
 
-				const allposting: JobPosting[] = []
+				const allPosting: JobPosting[] = []
 				const categoryPromises = snapshot.docs.map((categoryDoc) => {
 					const categoryId = categoryDoc.id
 					const categoryTitle =
@@ -153,7 +162,7 @@ export default function postingPage() {
 
 					return new Promise<void>((resolve) => {
 						onSnapshot(
-							collection(db, "categories", categoryId, "posting"), // Adjusted to "posting" as per your structure
+							collection(db, "categories", categoryId, "posting"),
 							(jobSnapshot) => {
 								const jobs = jobSnapshot.docs.map((jobDoc) => ({
 									id: jobDoc.id,
@@ -173,7 +182,7 @@ export default function postingPage() {
 									categoryId,
 									tags: jobDoc.data().tags || [],
 								})) as JobPosting[]
-								allposting.push(...jobs)
+								allPosting.push(...jobs)
 								resolve()
 							},
 							(error) => {
@@ -188,8 +197,8 @@ export default function postingPage() {
 				})
 
 				Promise.all(categoryPromises).then(() => {
-					console.log("Fetched job postings:", allposting)
-					setposting(allposting)
+					console.log("Fetched job postings:", allPosting)
+					setPosting(allPosting)
 				})
 			},
 			(error) => {
@@ -201,37 +210,107 @@ export default function postingPage() {
 		return () => unsubscribeCategories()
 	}, [])
 
+	useEffect(() => {
+		let unsubscribe: (() => void) | undefined
+		if (selectedCategory?.id) {
+			unsubscribe = fetchTagsForCategory(selectedCategory.id)
+		} else {
+			setCategoryTags([])
+			setSelectedTags([])
+		}
+		return () => {
+			if (unsubscribe) unsubscribe()
+		}
+	}, [selectedCategory])
+
 	const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
 		try {
-			const categoryId =
-				editJob?.categoryId ||
+			const newCategoryId =
 				categories.find((cat) => cat.title === category)?.id ||
 				"default-category-id"
+			const oldCategoryId = editJob?.categoryId
+
 			if (editJob) {
-				await setDoc(
-					doc(db, "categories", categoryId, "posting", editJob.id),
-					{
-						jobTitle,
-						jobDescription,
-						salary,
-						address,
-						city,
-						postalCode,
-						state,
-						contactNumber,
-						category,
-						contactEmail,
-						jobCompany,
-						imageUrl,
-						tags,
-						createdAt: editJob.createdAt,
-					}
-				)
-				console.log("Job posting updated:", editJob.id)
+				if (oldCategoryId && oldCategoryId !== newCategoryId) {
+					// Delete from old category
+					await deleteDoc(
+						doc(
+							db,
+							"categories",
+							oldCategoryId,
+							"posting",
+							editJob.id
+						)
+					)
+					console.log(
+						"Job deleted from old category:",
+						oldCategoryId,
+						editJob.id
+					)
+
+					// Add to new category
+					const docRef = await addDoc(
+						collection(db, "categories", newCategoryId, "posting"),
+						{
+							jobTitle,
+							jobDescription,
+							salary,
+							address,
+							city,
+							postalCode,
+							state,
+							contactNumber,
+							category,
+							contactEmail,
+							jobCompany,
+							imageUrl,
+							tags,
+							createdAt: editJob.createdAt,
+						}
+					)
+					console.log(
+						"Job moved to new category with new ID:",
+						newCategoryId,
+						docRef.id
+					)
+				} else {
+					// Update in same category
+					await setDoc(
+						doc(
+							db,
+							"categories",
+							newCategoryId,
+							"posting",
+							editJob.id
+						),
+						{
+							jobTitle,
+							jobDescription,
+							salary,
+							address,
+							city,
+							postalCode,
+							state,
+							contactNumber,
+							category,
+							contactEmail,
+							jobCompany,
+							imageUrl,
+							tags,
+							createdAt: editJob.createdAt,
+						}
+					)
+					console.log(
+						"Job updated in same category:",
+						newCategoryId,
+						editJob.id
+					)
+				}
 			} else {
+				// Add new job
 				const docRef = await addDoc(
-					collection(db, "categories", categoryId, "posting"),
+					collection(db, "categories", newCategoryId, "posting"),
 					{
 						jobTitle,
 						jobDescription,
@@ -251,6 +330,8 @@ export default function postingPage() {
 				)
 				console.log("Job posting added with ID:", docRef.id)
 			}
+
+			// Clear form and close modal
 			setJobTitle("")
 			setJobDescription("")
 			setSalary("")
@@ -265,6 +346,9 @@ export default function postingPage() {
 			setImageUrl("")
 			setTags([])
 			closeModal()
+
+			// Reload the page after successful update/addition
+			window.location.reload()
 		} catch (error: any) {
 			console.error("Firebase Error:", error.code, error.message)
 			alert(`Failed to save job posting: ${error.message}`)
@@ -277,21 +361,31 @@ export default function postingPage() {
 				doc(db, "categories", job.categoryId, "posting", job.id)
 			)
 			console.log("Job posting deleted successfully:", job.id)
+			// Optional: Reload after delete if desired
+			window.location.reload()
 		} catch (error: any) {
 			console.error("Firebase Error:", error.code, error.message)
 			alert(`Failed to delete job posting: ${error.message}`)
 		}
 	}
 
-	const filteredJobs = posting.filter(
-		(job) =>
+	const filteredJobs = posting.filter((job) => {
+		const matchesSearch =
 			(job.jobTitle?.toLowerCase() || "").includes(
 				searchTerm.toLowerCase()
 			) ||
 			(job.jobCompany?.toLowerCase() || "").includes(
 				searchTerm.toLowerCase()
 			)
-	)
+		const matchesCategory = selectedCategory
+			? job.categoryId === selectedCategory.id
+			: true
+		const matchesTags =
+			selectedTags.length > 0
+				? selectedTags.some((tag) => job.tags.includes(tag))
+				: true
+		return matchesSearch && matchesCategory && matchesTags
+	})
 
 	return (
 		<div className="p-6 bg-gray-100 min-h-screen font-sans">
@@ -307,6 +401,79 @@ export default function postingPage() {
 					Create New
 				</button>
 			</div>
+
+			{/* Categories as Buttons */}
+			<div className="mb-4">
+				<h2 className="text-lg font-semibold text-gray-700 mb-2">
+					Categories
+				</h2>
+				<div className="flex flex-wrap gap-2">
+					{categories.map((cat) => (
+						<button
+							key={cat.id}
+							onClick={() => {
+								setSelectedCategory(
+									cat === selectedCategory ? null : cat
+								)
+								setSelectedTags([])
+							}}
+							className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
+								selectedCategory?.id === cat.id
+									? "bg-black text-white border-grey-700"
+									: "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+							}`}
+						>
+							{cat.title}
+						</button>
+					))}
+				</div>
+			</div>
+
+			{/* Tags as Buttons */}
+			{selectedCategory && (
+				<div className="mb-4">
+					<h2 className="text-lg font-semibold text-gray-700 mb-2">
+						Tags for {selectedCategory.title}
+					</h2>
+					<div className="flex flex-wrap gap-2">
+						{categoryTags.length > 0 ? (
+							categoryTags.map((tag) => {
+								const isSelected = selectedTags.includes(tag.tag)
+								return (
+									<button
+										key={tag.id}
+										onClick={() => {
+											setSelectedTags((prev) => {
+												if (isSelected) {
+													return prev.filter((t) => t !== tag.tag)
+												} else if (prev.length < 3) {
+													return [...prev, tag.tag]
+												}
+												return prev
+											})
+										}}
+										className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
+											isSelected
+												? "bg-black text-white border-grey-700"
+												: "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+										}`}
+									>
+										{tag.tag}
+									</button>
+								)
+							})
+						) : (
+							<p className="text-sm text-gray-500">
+								No tags available for this category.
+							</p>
+						)}
+					</div>
+					<p className="text-xs text-gray-500 mt-1">
+						Select up to 3 tags (currently selected:{" "}
+						{selectedTags.length})
+					</p>
+				</div>
+			)}
 
 			<div className="bg-white rounded-2xl shadow-md p-4 mb-6">
 				<div className="flex gap-4 items-center">
@@ -556,6 +723,8 @@ export default function postingPage() {
 									required
 								/>
 							</div>
+
+							{/* Category Field in Modal */}
 							<div>
 								<label className="block text-sm font-semibold text-gray-700 mb-1">
 									Category
@@ -568,32 +737,7 @@ export default function postingPage() {
 											(cat) => cat.title === e.target.value
 										)
 										setSelectedCategory(selected || null)
-										if (selected && !editJob) {
-											// Fetch tags for new job postings when category changes
-											onSnapshot(
-												collection(
-													db,
-													"categories",
-													selected.id,
-													"tags"
-												),
-												(snapshot) => {
-													const tagsData: Tag[] = snapshot.docs.map(
-														(doc) => ({
-															id: doc.id,
-															...doc.data(),
-														})
-													) as Tag[]
-													setCategoryTags(tagsData)
-												},
-												(error) => {
-													console.error(
-														"Error fetching tags:",
-														error.message
-													)
-												}
-											)
-										}
+										setTags([]) // Reset tags when category changes
 									}}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									required
@@ -606,41 +750,60 @@ export default function postingPage() {
 									))}
 								</select>
 							</div>
-							<div>
+
+							{/* Tags as buttons in Modal */}
+							<div className="md:col-span-2">
 								<label className="block text-sm font-semibold text-gray-700 mb-1">
 									Tags
 								</label>
-								<select
-									multiple
-									value={tags}
-									onChange={(e) =>
-										setTags(
-											Array.from(
-												e.target.selectedOptions,
-												(option) => option.value
-											)
-										)
-									}
-									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-								>
+								<div className="flex flex-wrap gap-2">
 									{categoryTags.length > 0 ? (
-										categoryTags.map((tag) => (
-											<option key={tag.id} value={tag.tag}>
-												{tag.tag}
-											</option>
-										))
+										categoryTags.map((tag) => {
+											const isSelected = tags.includes(tag.tag)
+											return (
+												<button
+													type="button"
+													key={tag.id}
+													onClick={() => {
+														setTags((prev) => {
+															if (isSelected) {
+																return prev.filter(
+																	(t) => t !== tag.tag
+																)
+															} else if (prev.length < 3) {
+																return [...prev, tag.tag]
+															}
+															return prev
+														})
+													}}
+													className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
+														isSelected
+															? "bg-black text-white border-grey-700"
+															: "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+													}`}
+												>
+													{tag.tag}
+												</button>
+											)
+										})
 									) : (
-										<option disabled>No tags available</option>
+										<p className="text-sm text-gray-500">
+											{selectedCategory
+												? "No tags available for this category."
+												: "Select a category to view tags."}
+										</p>
 									)}
-								</select>
+								</div>
 								<p className="text-xs text-gray-500 mt-1">
-									Hold Ctrl/Cmd to select multiple tags
+									Select up to 3 tags (currently selected:{" "}
+									{tags.length})
 								</p>
 							</div>
+
 							<div className="md:col-span-2">
 								<button
 									type="submit"
-									className="w-full bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-indigo-700 transition duration-200 ease-in-out transform hover:scale-105"
+									className="w-full bg-black text-white px-6 py-3 rounded-full shadow-lg hover:bg-grey-700 transition duration-200 ease-in-out transform hover:scale-105"
 								>
 									{editJob ? "Update Job Posting" : "Add Job Posting"}
 								</button>
