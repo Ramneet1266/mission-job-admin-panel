@@ -706,42 +706,56 @@ export default function Page() {
 									disabled
 								/>
 							</div>
-							<div>
+							<div className="md:col-span-2">
 								<label className="block text-sm font-semibold text-gray-700 mb-1">
 									Tags
 								</label>
-								<select
-									multiple
-									value={jobData.tags}
-									onChange={(e) =>
-										setJobData({
-											...jobData,
-											tags: Array.from(
-												e.target.selectedOptions,
-												(option) => option.value
-											),
-										})
-									}
-									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-								>
+								<div className="flex flex-wrap gap-2">
 									{categoryTags.length > 0 ? (
-										categoryTags.map((tag) => (
-											<option key={tag.id} value={tag.tag}>
-												{tag.tag}
-											</option>
-										))
+										categoryTags.map((tag) => {
+											const isSelected = jobData.tags.includes(
+												tag.tag
+											)
+											return (
+												<button
+													type="button"
+													key={tag.id}
+													onClick={() =>
+														setJobData((prev) => ({
+															...prev,
+															tags: isSelected
+																? prev.tags.filter(
+																		(t) => t !== tag.tag
+																  )
+																: [...prev.tags, tag.tag],
+														}))
+													}
+													className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
+														isSelected
+															? "bg-black text-white border-gray-700"
+															: "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+													}`}
+												>
+													{tag.tag}
+												</button>
+											)
+										})
 									) : (
-										<option disabled>No tags available</option>
+										<p className="text-sm text-gray-500">
+											No tags available for this category. Add tags
+											first.
+										</p>
 									)}
-								</select>
+								</div>
 								<p className="text-xs text-gray-500 mt-1">
-									Hold Ctrl/Cmd to select multiple tags
+									Click to select/deselect tags (currently selected:{" "}
+									{jobData.tags.length})
 								</p>
 							</div>
 							<div className="md:col-span-2">
 								<button
 									type="submit"
-									className="w-full bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-indigo-700 transition duration-200 ease-in-out transform hover:scale-105"
+									className="w-full bg-black text-white px-6 py-3 rounded-full shadow-lg hover:bg-grey-700 transition duration-200 ease-in-out transform hover:scale-105"
 								>
 									Add Job Posting
 								</button>
