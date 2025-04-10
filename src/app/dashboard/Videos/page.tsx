@@ -3,6 +3,7 @@ import { Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useState, useEffect, FormEvent } from "react";
 import { db } from "../../lib/firebase"; // Adjust path as needed
 import { collection, onSnapshot, addDoc, setDoc, deleteDoc, doc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Add Storage imports
 
 interface Video {
   id: string;
@@ -18,13 +19,15 @@ export default function VideosPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [editVideo, setEditVideo] = useState<Video | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [videoFile, setVideoFile] = useState<File | null>(null); // New state for video file
   const [info, setInfo] = useState<string>("");
   const [title, setTitle] = useState<string>("");
 
+  const storage = getStorage(); // Initialize Firebase Storage
+
   const openModal = () => {
     setEditVideo(null);
-    setVideoUrl("");
+    setVideoFile(null);
     setInfo("");
     setTitle("");
     setIsModalOpen(true);
@@ -33,7 +36,7 @@ export default function VideosPage() {
   const openEditModal = (video: Video) => {
     setEditVideo(video);
     setTitle(video.title);
-    setVideoUrl(video.url);
+    setVideoFile(null); // Reset file input for edits
     setInfo(video.information || "");
     setIsModalOpen(true);
   };
@@ -47,7 +50,7 @@ export default function VideosPage() {
     }, 300);
   };
 
-  // Fetch videos in real-time
+  // Fetch videos in real-time (unchanged)
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "videos"),
@@ -72,7 +75,18 @@ export default function VideosPage() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      let videoUrl = editVideo?.url || ""; // Use existing URL for edits by default
+
+      // If a new video file is uploaded, override the URL
+      if (videoFile) {
+        const storageRef = ref(storage, `videos/${videoFile.name}`); // Store in videos folder
+        await uploadBytes(storageRef, videoFile);
+        videoUrl = await getDownloadURL(storageRef);
+        console.log("Video uploaded, URL:", videoUrl);
+      }
+
       if (editVideo) {
+        // Update existing video (original logic preserved)
         await setDoc(doc(db, "videos", editVideo.id), {
           title,
           url: videoUrl,
@@ -81,6 +95,8 @@ export default function VideosPage() {
         });
         console.log("Video updated:", editVideo.id);
       } else {
+        // Add new video (requires a video upload)
+        if (!videoUrl) throw new Error("No video uploaded");
         const docRef = await addDoc(collection(db, "videos"), {
           title,
           url: videoUrl,
@@ -89,7 +105,8 @@ export default function VideosPage() {
         });
         console.log("Video added with ID:", docRef.id);
       }
-      setVideoUrl("");
+
+      setVideoFile(null);
       setInfo("");
       setTitle("");
       closeModal();
@@ -100,6 +117,7 @@ export default function VideosPage() {
     }
   };
 
+  // Delete functionality (unchanged)
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, "videos", id));
@@ -230,14 +248,19 @@ export default function VideosPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Video URL</label>
+                <label className="text-sm font-medium">Upload Video</label>
                 <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
                   className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
-                  required
+                  required={!editVideo} // Required only for new entries
                 />
+                {editVideo && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Current video: <a href={editVideo.url} target="_blank">{editVideo.url}</a>
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Information</label>

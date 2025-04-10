@@ -3,6 +3,7 @@ import { Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useState, useEffect, FormEvent } from "react";
 import { db } from "../../lib/firebase"; // Adjust path as needed
 import { collection, onSnapshot, addDoc, setDoc, deleteDoc, doc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Storage imports
 
 interface Info {
   id: string;
@@ -18,13 +19,15 @@ export default function InformationPage() {
   const [infos, setInfos] = useState<Info[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [editInfo, setEditInfo] = useState<Info | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null); // For new image uploads
   const [info, setInfo] = useState<string>("");
   const [title, setTitle] = useState<string>("");
 
+  const storage = getStorage(); // Initialize Firebase Storage
+
   const openModal = () => {
     setEditInfo(null);
-    setImageUrl("");
+    setImageFile(null);
     setInfo("");
     setTitle("");
     setIsModalOpen(true);
@@ -33,7 +36,7 @@ export default function InformationPage() {
   const openEditModal = (infoItem: Info) => {
     setEditInfo(infoItem);
     setTitle(infoItem.title);
-    setImageUrl(infoItem.url);
+    setImageFile(null); // Reset file input for edits
     setInfo(infoItem.information || "");
     setIsModalOpen(true);
   };
@@ -47,7 +50,7 @@ export default function InformationPage() {
     }, 300);
   };
 
-  // Fetch information in real-time
+  // Fetch information in real-time (unchanged from original)
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "information"),
@@ -72,7 +75,18 @@ export default function InformationPage() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      let imageUrl = editInfo?.url || ""; // Use existing URL for edits by default
+
+      // If a new image is uploaded, override the URL
+      if (imageFile) {
+        const storageRef = ref(storage, `images/${imageFile.name}`);
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+        console.log("Image uploaded, URL:", imageUrl);
+      }
+
       if (editInfo) {
+        // Update existing document (unchanged logic, just with new image URL if uploaded)
         await setDoc(doc(db, "information", editInfo.id), {
           title,
           url: imageUrl,
@@ -81,6 +95,8 @@ export default function InformationPage() {
         });
         console.log("Information updated:", editInfo.id);
       } else {
+        // Add new document (requires an image upload)
+        if (!imageUrl) throw new Error("No image uploaded");
         const docRef = await addDoc(collection(db, "information"), {
           title,
           url: imageUrl,
@@ -89,7 +105,8 @@ export default function InformationPage() {
         });
         console.log("Information added with ID:", docRef.id);
       }
-      setImageUrl("");
+
+      setImageFile(null);
       setInfo("");
       setTitle("");
       closeModal();
@@ -100,6 +117,7 @@ export default function InformationPage() {
     }
   };
 
+  // Delete functionality (unchanged from original)
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, "information", id));
@@ -230,14 +248,19 @@ export default function InformationPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Image URL</label>
+                <label className="text-sm font-medium">Upload Image</label>
                 <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                   className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
-                  required
+                  required={!editInfo} // Required only for new entries
                 />
+                {editInfo && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Current image: <a href={editInfo.url} target="_blank">{editInfo.url}</a>
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Information</label>
