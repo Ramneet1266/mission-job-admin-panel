@@ -3,6 +3,7 @@ import { Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { useState, useEffect, FormEvent } from "react";
 import { db } from "../../lib/firebase"; // Adjust path as needed
 import { collection, onSnapshot, addDoc, setDoc, deleteDoc, doc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Add Storage imports
 
 interface News {
   id: string;
@@ -18,13 +19,15 @@ export default function NewsPage() {
   const [news, setNews] = useState<News[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [editNews, setEditNews] = useState<News | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null); // New state for file upload
   const [info, setInfo] = useState<string>("");
   const [title, setTitle] = useState<string>("");
 
+  const storage = getStorage(); // Initialize Firebase Storage
+
   const openModal = () => {
     setEditNews(null);
-    setImageUrl("");
+    setImageFile(null);
     setInfo("");
     setTitle("");
     setIsModalOpen(true);
@@ -33,7 +36,7 @@ export default function NewsPage() {
   const openEditModal = (newsItem: News) => {
     setEditNews(newsItem);
     setTitle(newsItem.title);
-    setImageUrl(newsItem.url);
+    setImageFile(null); // Reset file input for edits
     setInfo(newsItem.information || "");
     setIsModalOpen(true);
   };
@@ -47,7 +50,7 @@ export default function NewsPage() {
     }, 300);
   };
 
-  // Fetch news in real-time
+  // Fetch news in real-time (unchanged)
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "news"),
@@ -72,7 +75,18 @@ export default function NewsPage() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      let imageUrl = editNews?.url || ""; // Use existing URL for edits by default
+
+      // If a new image is uploaded, override the URL
+      if (imageFile) {
+        const storageRef = ref(storage, `newsImages/${imageFile.name}`); // Store in newsImages folder
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+        console.log("Image uploaded, URL:", imageUrl);
+      }
+
       if (editNews) {
+        // Update existing news (original logic preserved)
         await setDoc(doc(db, "news", editNews.id), {
           title,
           url: imageUrl,
@@ -81,6 +95,8 @@ export default function NewsPage() {
         });
         console.log("News updated:", editNews.id);
       } else {
+        // Add new news (requires an image upload)
+        if (!imageUrl) throw new Error("No image uploaded");
         const docRef = await addDoc(collection(db, "news"), {
           title,
           url: imageUrl,
@@ -89,7 +105,8 @@ export default function NewsPage() {
         });
         console.log("News added with ID:", docRef.id);
       }
-      setImageUrl("");
+
+      setImageFile(null);
       setInfo("");
       setTitle("");
       closeModal();
@@ -100,6 +117,7 @@ export default function NewsPage() {
     }
   };
 
+  // Delete functionality (unchanged)
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, "news", id));
@@ -230,14 +248,19 @@ export default function NewsPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Image URL</label>
+                <label className="text-sm font-medium">Upload Image</label>
                 <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                   className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
-                  required
+                  required={!editNews} // Required only for new entries
                 />
+                {editNews && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Current image: <a href={editNews.url} target="_blank">{editNews.url}</a>
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium">Information</label>
