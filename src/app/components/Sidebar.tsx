@@ -11,6 +11,7 @@ import {
 	FaChevronLeft,
 	FaChevronRight,
 	FaBriefcase,
+	FaUsers,
 } from "react-icons/fa"
 import { BiCategoryAlt } from "react-icons/bi"
 import { signOut } from "firebase/auth"
@@ -38,6 +39,11 @@ export default function Sidebar() {
 			icon: <BiCategoryAlt />,
 			label: "Category",
 			href: "/dashboard/Category",
+		},
+		{
+			icon: <FaUsers />,
+			label: "Users",
+			href: "/dashboard/Users",
 		},
 	]
 	const handleLogout = async () => {
