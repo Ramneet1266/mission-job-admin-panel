@@ -537,11 +537,14 @@ export default function PostingPage() {
 									<td className="px-4 py-3">{`${job.city}, ${job.state} ${job.postalCode}`}</td>
 									<td className="px-4 py-3">{job.category}</td>
 									<td className="px-4 py-3">
-										<img
-											src={job.imageUrl}
-											alt={job.jobTitle}
-											className="w-20 h-20 object-cover rounded"
-										/>
+										{job.imageUrl ? (
+											<img
+												src={job.imageUrl || ""}
+												className="w-20 h-20 object-cover rounded"
+											/>
+										) : (
+											<span className="text-gray-500">N/A</span>
+										)}
 									</td>
 									<td className="px-4 py-3">
 										{new Date(job.createdAt).toLocaleDateString()}
@@ -810,7 +813,7 @@ export default function PostingPage() {
 									Created At
 								</label>
 								<input
-									type="text"
+									type="date"
 									value={
 										editJob
 											? new Date(
@@ -818,8 +821,7 @@ export default function PostingPage() {
 											  ).toLocaleDateString()
 											: new Date().toLocaleDateString()
 									}
-									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-100 cursor-not-allowed"
-									disabled
+									className="w-full px-4 py-2 border border-gray-300 rounded-lg"
 								/>
 							</div>
 							<div className="md:col-span-2">

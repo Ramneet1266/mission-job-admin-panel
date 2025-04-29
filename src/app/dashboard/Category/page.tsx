@@ -245,7 +245,7 @@ export default function Page() {
 		e.preventDefault()
 		if (!selectedCategory) return
 		try {
-			let imageUrl = jobData.imageUrl
+			let imageUrl = jobData.imageUrl || "N/A"
 
 			if (jobImageFile) {
 				const storageRef = ref(
@@ -256,8 +256,6 @@ export default function Page() {
 				imageUrl = await getDownloadURL(storageRef)
 				console.log("Job image uploaded, URL:", imageUrl)
 			}
-
-			if (!imageUrl) throw new Error("No image uploaded")
 
 			await addDoc(
 				collection(db, "categories", selectedCategory.id, "posting"),
@@ -434,7 +432,6 @@ export default function Page() {
 									}
 									className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
 									placeholder="Enter category title"
-									required
 								/>
 							</div>
 							<div>
@@ -499,7 +496,6 @@ export default function Page() {
 									}
 									className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
 									placeholder="Enter tag"
-									required
 								/>
 							</div>
 							<button
@@ -553,7 +549,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter job title"
-									required
 								/>
 							</div>
 							<div>
@@ -568,7 +563,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter salary (e.g., $50,000)"
-									required
 								/>
 							</div>
 							<div className="md:col-span-2">
@@ -586,7 +580,6 @@ export default function Page() {
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter job description"
 									rows={4}
-									required
 								/>
 							</div>
 							<div>
@@ -604,7 +597,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter address"
-									required
 								/>
 							</div>
 							<div>
@@ -619,7 +611,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter city"
-									required
 								/>
 							</div>
 							<div>
@@ -637,7 +628,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter postal code"
-									required
 								/>
 							</div>
 							<div>
@@ -652,7 +642,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter state"
-									required
 								/>
 							</div>
 							<div>
@@ -670,7 +659,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter contact number"
-									required
 								/>
 							</div>
 							<div>
@@ -688,7 +676,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter contact email"
-									required
 								/>
 							</div>
 							<div>
@@ -706,7 +693,6 @@ export default function Page() {
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
 									placeholder="Enter company name"
-									required
 								/>
 							</div>
 							<div>
@@ -720,7 +706,6 @@ export default function Page() {
 										setJobImageFile(e.target.files?.[0] || null)
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-									required
 								/>
 							</div>
 							<div>
@@ -748,7 +733,6 @@ export default function Page() {
 										})
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-									required
 								/>
 							</div>
 							<div>
@@ -764,7 +748,6 @@ export default function Page() {
 										})
 									}
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-									required
 								>
 									<option value="Active">Active</option>
 									<option value="Non-Active">Non-Active</option>
