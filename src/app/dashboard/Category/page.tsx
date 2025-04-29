@@ -40,8 +40,8 @@ interface JobPosting {
 	imageUrl: string
 	createdAt: string
 	tags: string[]
-	date: string // New field
-	status: string // New field
+	date: string
+	status: string
 }
 
 interface Tag {
@@ -81,11 +81,12 @@ export default function Page() {
 		jobCompany: "",
 		imageUrl: "",
 		tags: [] as string[],
-		date: "", // New field
-		status: "Active", // New field with default value
+		date: "",
+		status: "Active",
 	})
 	const [jobImageFile, setJobImageFile] = useState<File | null>(null)
 	const [categoryTags, setCategoryTags] = useState<Tag[]>([])
+	const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
 	const storage = getStorage()
 
@@ -125,10 +126,11 @@ export default function Page() {
 			jobCompany: "",
 			imageUrl: "",
 			tags: [],
-			date: "", // Initialize new field
-			status: "Active", // Initialize new field
+			date: "",
+			status: "Active",
 		})
 		setJobImageFile(null)
+
 		const tagsUnsubscribe = onSnapshot(
 			collection(db, "categories", category.id, "tags"),
 			(snapshot) => {
@@ -142,8 +144,9 @@ export default function Page() {
 				console.error("Error fetching tags:", error.message)
 			}
 		)
+
 		setIsJobModalOpen(true)
-		return () => tagsUnsubscribe()
+		return tagsUnsubscribe
 	}
 
 	const closeModal = () => {
@@ -167,7 +170,6 @@ export default function Page() {
 					id: doc.id,
 					...doc.data(),
 				})) as Category[]
-				console.log("Real-time categories:", categoryData)
 				setCategories(categoryData)
 			},
 			(error: unknown) => {
@@ -183,7 +185,6 @@ export default function Page() {
 	const handleDelete = async (id: string) => {
 		try {
 			await deleteDoc(doc(db, "categories", id))
-			console.log("Category deleted successfully:", id)
 		} catch (error: unknown) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error)
@@ -200,13 +201,11 @@ export default function Page() {
 					...formData,
 					createdAt: editCategory.createdAt,
 				})
-				console.log("Category updated successfully:", editCategory.id)
 			} else {
 				await addDoc(collection(db, "categories"), {
 					...formData,
 					createdAt: new Date().toISOString(),
 				})
-				console.log("Category added successfully")
 			}
 			closeModal()
 		} catch (error: unknown) {
@@ -228,10 +227,6 @@ export default function Page() {
 					createdAt: new Date().toISOString(),
 				}
 			)
-			console.log(
-				"Tag added successfully for category:",
-				selectedCategory.id
-			)
 			closeModal()
 		} catch (error: unknown) {
 			const errorMessage =
@@ -243,7 +238,9 @@ export default function Page() {
 
 	const handleJobSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
-		if (!selectedCategory) return
+		if (!selectedCategory || isSubmitting) return
+		setIsSubmitting(true)
+
 		try {
 			let imageUrl = jobData.imageUrl || "N/A"
 
@@ -254,7 +251,6 @@ export default function Page() {
 				)
 				await uploadBytes(storageRef, jobImageFile)
 				imageUrl = await getDownloadURL(storageRef)
-				console.log("Job image uploaded, URL:", imageUrl)
 			}
 
 			await addDoc(
@@ -274,20 +270,19 @@ export default function Page() {
 					imageUrl: imageUrl,
 					tags: jobData.tags,
 					createdAt: new Date().toISOString(),
-					date: jobData.date, // New field
-					status: jobData.status, // New field
+					date: jobData.date,
+					status: jobData.status,
 				}
 			)
-			console.log(
-				"Job posting added successfully for category:",
-				selectedCategory.id
-			)
+
 			closeModal()
 		} catch (error: unknown) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error)
 			console.error("Error saving job posting:", error)
 			alert(`Failed to save job posting: ${errorMessage}`)
+		} finally {
+			setIsSubmitting(false)
 		}
 	}
 
@@ -802,9 +797,14 @@ export default function Page() {
 							<div className="md:col-span-2">
 								<button
 									type="submit"
-									className="w-full bg-black text-white px-6 py-3 rounded-full shadow-lg hover:bg-gray-700 transition duration-200 ease-in-out transform hover:scale-105"
+									disabled={isSubmitting}
+									className={`w-full px-6 py-3 rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-105 ${
+										isSubmitting
+											? "bg-gray-500 text-white cursor-not-allowed"
+											: "bg-black text-white hover:bg-gray-700"
+									}`}
 								>
-									Add Job Posting
+									{isSubmitting ? "Submitting..." : "Add Job Posting"}
 								</button>
 							</div>
 						</form>
