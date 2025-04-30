@@ -31,10 +31,10 @@ interface JobPosting {
 	contactEmail: string
 	jobCompany: string
 	imageUrl: string
-	createdAt: string
+	date: string // Using 'date' field from Firestore (YYYY-MM-DD format)
 	categoryId: string
 	tags: string[]
-	status: string // Added status field
+	status: string
 }
 
 interface Category {
@@ -72,9 +72,45 @@ export default function PostingPage() {
 		useState<Category | null>(null)
 	const [categoryTags, setCategoryTags] = useState<Tag[]>([])
 	const [selectedTags, setSelectedTags] = useState<string[]>([])
-	const [status, setStatus] = useState<string>("Active") // Added status state
+	const [status, setStatus] = useState<string>("Active")
 
 	const storage = getStorage()
+
+	// Function to format dates safely (expects YYYY-MM-DD format)
+	const formatDate = (dateString: string) => {
+		try {
+			const date = new Date(dateString)
+			if (isNaN(date.getTime())) {
+				return "Unknown"
+			}
+			return date.toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+			})
+		} catch (error) {
+			console.error("Error parsing date:", dateString, error)
+			return "Unknown"
+		}
+	}
+
+	// Function to format date for <input type="date"> (YYYY-MM-DD)
+	const formatDateForInput = (dateString: string) => {
+		try {
+			const date = new Date(dateString)
+			if (isNaN(date.getTime())) {
+				return new Date().toISOString().split("T")[0] // Fallback to today
+			}
+			return date.toISOString().split("T")[0]
+		} catch (error) {
+			console.error(
+				"Error formatting date for input:",
+				dateString,
+				error
+			)
+			return new Date().toISOString().split("T")[0]
+		}
+	}
 
 	const fetchTagsForCategory = (categoryId: string) => {
 		const tagsUnsubscribe = onSnapshot(
@@ -109,7 +145,7 @@ export default function PostingPage() {
 		setJobCompany("")
 		setImageFile(null)
 		setTags([])
-		setStatus("Active") // Default status for new job
+		setStatus("Active")
 		setSelectedCategory(null)
 		setCategoryTags([])
 		setIsModalOpen(true)
@@ -130,7 +166,7 @@ export default function PostingPage() {
 		setJobCompany(job.jobCompany || "")
 		setImageFile(null)
 		setTags(job.tags || [])
-		setStatus(job.status || "Active") // Set status from job
+		setStatus(job.status || "Active")
 
 		const jobCategory = categories.find(
 			(cat) => cat.id === job.categoryId
@@ -175,25 +211,30 @@ export default function PostingPage() {
 						onSnapshot(
 							collection(db, "categories", categoryId, "posting"),
 							(jobSnapshot) => {
-								const jobs = jobSnapshot.docs.map((jobDoc) => ({
-									id: jobDoc.id,
-									jobTitle: jobDoc.data().jobTitle || "",
-									jobDescription: jobDoc.data().jobDescription || "",
-									salary: jobDoc.data().salary || "",
-									address: jobDoc.data().address || "",
-									city: jobDoc.data().city || "",
-									postalCode: jobDoc.data().postalCode || "",
-									state: jobDoc.data().state || "",
-									contactNumber: jobDoc.data().contactNumber || "",
-									category: categoryTitle,
-									contactEmail: jobDoc.data().contactEmail || "",
-									jobCompany: jobDoc.data().jobCompany || "",
-									imageUrl: jobDoc.data().imageUrl || "",
-									createdAt: jobDoc.data().createdAt || "",
-									categoryId,
-									tags: jobDoc.data().tags || [],
-									status: jobDoc.data().status || "Active", // Fetch status
-								})) as JobPosting[]
+								const jobs = jobSnapshot.docs.map((jobDoc) => {
+									const jobData = jobDoc.data()
+									return {
+										id: jobDoc.id,
+										jobTitle: jobData.jobTitle || "",
+										jobDescription: jobData.jobDescription || "",
+										salary: jobData.salary || "",
+										address: jobData.address || "",
+										city: jobData.city || "",
+										postalCode: jobData.postalCode || "",
+										state: jobData.state || "",
+										contactNumber: jobData.contactNumber || "",
+										category: categoryTitle,
+										contactEmail: jobData.contactEmail || "",
+										jobCompany: jobData.jobCompany || "",
+										imageUrl: jobData.imageUrl || "",
+										date: jobData.date
+											? jobData.date
+											: new Date().toISOString().split("T")[0],
+										categoryId,
+										tags: jobData.tags || [],
+										status: jobData.status || "Active",
+									}
+								}) as JobPosting[]
 								allPosting.push(...jobs)
 								resolve()
 							},
@@ -209,7 +250,18 @@ export default function PostingPage() {
 				})
 
 				Promise.all(categoryPromises).then(() => {
-					console.log("Fetched job postings:", allPosting)
+					// Sort postings by date in descending order (latest first)
+					allPosting.sort((a, b) => b.date.localeCompare(a.date))
+
+					console.log(
+						"Total job postings fetched (sorted by date descending):",
+						allPosting.length,
+						allPosting
+					)
+					const april27Jobs = allPosting.filter(
+						(job) => job.date === "2025-04-27"
+					)
+					console.log("Jobs with date '2025-04-27':", april27Jobs)
 					setPosting(allPosting)
 				})
 			},
@@ -287,8 +339,8 @@ export default function PostingPage() {
 							jobCompany,
 							imageUrl,
 							tags,
-							createdAt: editJob.createdAt,
-							status, // Include status
+							date: editJob.date, // Preserve original date
+							status,
 						}
 					)
 					console.log(
@@ -319,8 +371,8 @@ export default function PostingPage() {
 							jobCompany,
 							imageUrl,
 							tags,
-							createdAt: editJob.createdAt,
-							status, // Include status
+							date: editJob.date, // Preserve original date
+							status,
 						}
 					)
 					console.log(
@@ -346,8 +398,8 @@ export default function PostingPage() {
 						jobCompany,
 						imageUrl,
 						tags,
-						createdAt: new Date().toISOString(),
-						status, // Include status
+						date: new Date().toISOString().split("T")[0], // Set current date for new job in YYYY-MM-DD format
+						status,
 					}
 				)
 				console.log("Job posting added with ID:", docRef.id)
@@ -366,7 +418,7 @@ export default function PostingPage() {
 			setJobCompany("")
 			setImageFile(null)
 			setTags([])
-			setStatus("Active") // Reset status
+			setStatus("Active")
 			closeModal()
 
 			window.location.reload()
@@ -387,6 +439,12 @@ export default function PostingPage() {
 			console.error("Firebase Error:", error.code, error.message)
 			alert(`Failed to delete job posting: ${error.message}`)
 		}
+	}
+
+	const clearFilters = () => {
+		setSearchTerm("")
+		setSelectedCategory(null)
+		setSelectedTags([])
 	}
 
 	const filteredJobs = posting.filter((job) => {
@@ -506,10 +564,16 @@ export default function PostingPage() {
 						<Search size={16} />
 						Search
 					</button>
+					<button
+						onClick={clearFilters}
+						className="bg-gray-200 hover:bg-gray-300 text-black px-4 py-2 rounded-full shadow-sm transition"
+					>
+						Clear Filters
+					</button>
 				</div>
 			</div>
 
-			<div className="bg-white shadow-md rounded-2xl overflow-x-auto">
+			<div className="bg-white shadow-md rounded-2xl overflow-x-auto overflow-y-auto max-h-[70vh]">
 				<table className="min-w-full text-sm text-left">
 					<thead className="bg-gray-50">
 						<tr className="text-gray-600 uppercase">
@@ -547,7 +611,7 @@ export default function PostingPage() {
 										)}
 									</td>
 									<td className="px-4 py-3">
-										{new Date(job.createdAt).toLocaleDateString()}
+										{formatDate(job.date)}
 									</td>
 									<td className="px-4 py-3">
 										<span
@@ -810,17 +874,16 @@ export default function PostingPage() {
 							</div>
 							<div>
 								<label className="block text-sm font-semibold text-gray-700 mb-1">
-									Created At
+									Posting Date
 								</label>
 								<input
 									type="date"
 									value={
 										editJob
-											? new Date(
-													editJob.createdAt
-											  ).toLocaleDateString()
-											: new Date().toLocaleDateString()
+											? formatDateForInput(editJob.date)
+											: new Date().toISOString().split("T")[0]
 									}
+									disabled // Read-only to prevent manual changes
 									className="w-full px-4 py-2 border border-gray-300 rounded-lg"
 								/>
 							</div>
@@ -876,7 +939,9 @@ export default function PostingPage() {
 									type="submit"
 									className="w-full bg-black text-white px-6 py-3 rounded-full shadow-lg hover:bg-gray-700 transition duration-200 ease-in-out transform hover:scale-105"
 								>
-									{editJob ? "Update Job Posting" : "Add Job Posting"}
+									{editJob
+										? "Update Job Posting"
+										: "Add New Job Posting"}
 								</button>
 							</div>
 						</form>
