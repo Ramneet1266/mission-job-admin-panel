@@ -12,6 +12,7 @@ import {
 	FaChevronRight,
 	FaBriefcase,
 	FaUsers,
+	FaUpload,
 } from "react-icons/fa"
 import { BiCategoryAlt } from "react-icons/bi"
 import { signOut } from "firebase/auth"
@@ -45,7 +46,13 @@ export default function Sidebar() {
 			label: "Users",
 			href: "/dashboard/Users",
 		},
+		{
+			icon: <FaUpload />,
+			label: "Upload Data",
+			href: "/dashboard/UploadData",
+		},
 	]
+
 	const handleLogout = async () => {
 		try {
 			await signOut(auth)
@@ -56,6 +63,7 @@ export default function Sidebar() {
 			console.error("Logout failed:", error)
 		}
 	}
+
 	return (
 		<div
 			className={`h-screen ${
